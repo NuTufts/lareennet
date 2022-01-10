@@ -2,6 +2,46 @@
 
 Exploration of Euclidean Equivarient Neural Networks for Liquid Argon TPC data
 
+# Setting up the container
+
+(To be implemented)
+
+# Setting up MicroBooNE code for accessing data
+
+## If using container w/ ubdl
+
+## If using container w/ dependencies only
+
+First setup of the ubdl repository. You only have to do this the first time you check out this code.
+
+
+```
+git submodule init
+git submodule update
+```
+
+Then setup the environment variables.
+
+```
+source set_env_vars.sh
+```
+
+Now go into the ubdl repository and start the build
+
+```
+source scripts/buildall_py3.sh
+```
+
+That should be it. To test it, you can go into the folder where this README lives then
+
+```
+python3
+> from larcv import larcv
+```
+
+If you see no errors, things should be ok.
+
+
 # Training data workflow
 
 Training data derives from MicroBooNE simulated files.
