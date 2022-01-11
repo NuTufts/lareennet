@@ -7,6 +7,69 @@ We implement two types of networks to benchmark potential improvements from usin
 * Single Particle Classification network: `models/larvoxelclassifier.py`
 * Semantic segmentation network: (not implemented yet)
 
+## Running the test example
+
+First, get the singularity container. You can also run the code within a docker container.
+
+### Singularity
+
+If you don't already have it, you can install singularity via [these instructions](https://sylabs.io/guides/3.9/user-guide/quick_start.html#quick-installation-steps).
+
+Download the ubdl container at this [google drive location](https://drive.google.com/file/d/1dpJquaLIihqBqOtb2NwNZ_Mm4qR8p3U1/view?usp=sharing).
+
+If you haven't already done it, clone this repository somewhere:
+
+```
+git clone http://github.com/nutufts/larennet
+```
+
+You can then start the singularity container
+
+```
+singularity shell --nv [location of container]/singularity_ubdl_dlgen2_u20.04.cu111.torch1.9.0.sif
+Singularity > bash
+```
+
+Now you are inside the container (and inside a bash shell).
+
+Go to the `larennet` folder you cloned and run
+
+```
+source set_env_vars_ubdl_container.sh
+```
+
+If you haven't already, get some testdata (instructions in `testdata/README.md`) and put it into the `testdata` folder.
+
+Then you should be able to start the training,
+
+```
+python train_dist_larvoxel_classify.py --config-file config/larvoxel_classifier_test.yaml --gpu 1
+```
+
+### Docker
+
+Note -- I could not figure out how to run docker with the nvidia runtime.
+So I have not tested it.
+I imagine the instructions would be something like the following.
+
+---
+
+You can also get a docker container instead.
+
+
+```
+docker pull larbys/ubdl:dlgen2_cu11.1_torch1.9_minkowski
+```
+
+Start docker
+
+```
+docker run --gpu all -it larbys/ubdl:dlgen2_cu11.1_torch1.9_minkowski bash
+```
+
+And then follow same steps as singularity container.
+
+
 ## Models
 
 ### Classification
