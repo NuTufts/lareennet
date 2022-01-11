@@ -20,7 +20,7 @@ Download the ubdl container at this [google drive location](https://drive.google
 If you haven't already done it, clone this repository somewhere:
 
 ```
-git clone http://github.com/nutufts/larennet
+git clone http://github.com/nutufts/lareennet
 ```
 
 You can then start the singularity container
