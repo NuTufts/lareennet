@@ -38,6 +38,8 @@ Go to the `lareennet` folder you cloned and run
 source set_env_vars_ubdl_container.sh
 ```
 
+Now you can come back to this folder (`lareennet/larvoxel`) to start the training script.
+
 If you haven't already, get some testdata (instructions in `testdata/README.md`) and put it into the `testdata` folder.
 
 Then you should be able to start the training,
