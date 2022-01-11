@@ -1,0 +1,6 @@
+testdata/testdata_electron.root
+testdata/testdata_gamma.root
+testdata/testdata_kaon.root
+testdata/testdata_muon.root
+testdata/testdata_pion.root
+testdata/testdata_proton.root
