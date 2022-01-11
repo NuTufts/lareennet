@@ -32,7 +32,7 @@ Singularity > bash
 
 Now you are inside the container (and inside a bash shell).
 
-Go to the `larennet` folder you cloned and run
+Go to the `lareennet` folder you cloned and run
 
 ```
 source set_env_vars_ubdl_container.sh
