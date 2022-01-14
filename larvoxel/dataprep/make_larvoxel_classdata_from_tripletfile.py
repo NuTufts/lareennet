@@ -1,11 +1,10 @@
 from __future__ import print_function
 import os,sys,argparse,json
-sys.path.append(os.environ["LARFLOW_BASEDIR"]+"/larmatchnet")
+sys.path.append(os.environ["LARFLOW_BASEDIR"]+"/larmatchnet/larvoxel/prepdata/")
 
 parser = argparse.ArgumentParser(description='Run Prep larmatch data')
 parser.add_argument('-o','--output',required=True,type=str,help="Filename stem for output files")
 parser.add_argument('-i','--fileid',required=True,type=int,help="File ID number to run")
-parser.add_argument('-s','--single',default=False,action='store_true',help='If flag given, input_list argument is interpretted as a triplet file')
 parser.add_argument('input_list',type=str,help="json file that collates triplet and mcinfo files")
 
 args = parser.parse_args()
@@ -17,6 +16,7 @@ import ROOT as rt
 from ROOT import std
 from larlite import larlite
 from larcv import larcv
+from ublarcvapp import ublarcvapp
 from larflow import larflow
 
 if not os.path.exists(args.input_list):
@@ -85,7 +85,12 @@ print("Input ready to go!")
 
 # we're going to loop through the larlite file to make a rse to entry map
 # do we need to?
-
+rse_map = {}
+for i in range(ll_nentries):
+    io.go_to(i)
+    rse = ( int(io.run_id()),int(io.subrun_id()),int(io.event_id()) )
+    rse_map[rse] = i
+    
 # output container for data
 # we split the data into classes. This will make it easier to sample in a balance way.
 outfiles = {}
@@ -111,6 +116,7 @@ for pdgname in PDG_NAMES:
                     shower0_or_track1 = array('i',[0]),
                     trackid = array('i',[0]),
                     ke      = array('f',[0]),
+                    ndaughters =  array('i',[0]),
 
                     # 3D Wire Plane Images, as sparse matrices
                     coord_v = std.vector("larcv::NumpyArrayInt")(),
@@ -131,6 +137,7 @@ for pdgname in PDG_NAMES:
     outtree.Branch("pid",    treevars["pid"],    "pid/I")
     outtree.Branch("shower0_or_track1", treevars["shower0_or_track1"], "shower0_or_track1/I")
     outtree.Branch("geant_trackid", treevars["trackid"], "geant_trackid/I")
+    outtree.Branch("ndaughters", treevars["ndaughters"], "ndaughters/I" )
     outtree.Branch("ke",       treevars["ke"],"ke/F")
     outtree.Branch("coord_v",  treevars["coord_v"])
     outtree.Branch("feat_v",   treevars["feat_v"])
@@ -148,13 +155,27 @@ for ientry in range(nentries):
     
     # Get the first entry (or row) in the tree (i.e. table)
     labeler.load_entry(ientry)
-    io.go_to(ientry)
+    trip_rse = ( int(labeler.run()), int(labeler.subrun()), int(labeler.event()) )
+
+    if trip_rse not in rse_map:
+        raise ValueError("triplet rse not in larlite RSE",trip_rse)
+
+    llentry = rse_map[trip_rse]
+    io.go_to(llentry)
+
+    mcpg = ublarcvapp.mctools.MCPixelPGraph()
+    mcpg.buildgraphonly( io )
 
     voxelizer.make_voxeldata( labeler.triplet_v[0] )    
     voxdata = voxelizer.get_full_voxel_labelset_dict( labeler )
 
-    print("triplet rse: ",(labeler.run(),labeler.subrun(),labeler.event()))
-    print("larlite: ",(io.run_id(),io.subrun_id(),io.event_id()))
+    ll_rse = ( int(io.run_id()), int(io.subrun_id()), int(io.event_id()) )
+    print("triplet rse: ",trip_rse)
+    print("larlite: ",ll_rse)
+
+    if ll_rse != trip_rse:
+        raise ValueError("larlite and triplet RSE mismatch! triplet=",trip_rse," larlite=",ll_rse)
+        
     print("voxdata keys: ",voxdata.keys())
     #print("voxinstance2id")
     #print(voxdata["voxinstance2id"])
@@ -184,19 +205,45 @@ for ientry in range(nentries):
             if partke<20:
                 continue
 
+            KEfinal = mcpart.End().Momentum().E()-mass
+            posfinal = [ mcpart.End().Position()(x) for x in range(4) ]
+            posstart = [ mcpart.Start().Position()(x) for x in range(4) ]
+
             trackid = mcpart.TrackID()
+            ancestorid = mcpart.AncestorTrackID()
             if trackid not in voxdata["voxinstance2id"]:
+                # we must have voxels
+                continue
+            if ancestorid!=trackid and pdgcode!=22:
+                # we also need to be a primary
                 continue
 
-            iid = voxdata["voxinstance2id"][trackid]
-            #print("instanceid=",iid)
-            indexmatch = voxdata["voxinstance"]==iid
-            nvoxels = indexmatch.sum()
+            if posstart[0]<10 or posstart[0]>245 or posstart[1]<-106 or posstart[1]>106 or posstart[2]<10 or posstart[2]>1025:
+                continue
+
+            # we get the node and daughter list
+            node_v = mcpg.getNodeAndDescendentsFromTrackID( trackid )
+            iid_v = [] # list of instance ids to collect
+            for inode in range(node_v.size()):
+                node_trackid = node_v.at(inode).tid
+                if s_t==1 and node_v.at(inode).pid==22:
+                    continue # don't append gammas to track cascades. closer to what will happen in reco.
+                if node_trackid in voxdata["voxinstance2id"]:
+                    iid = voxdata["voxinstance2id"][node_trackid]
+                    iid_v.append( iid )
+
+            if len(iid_v)==0:
+                continue
+
+            indexmatch_v = [ voxdata["voxinstance"]==iid for iid in iid_v ]
+            nvoxels = 0
+            for indexmatch in indexmatch_v:
+                nvoxels += indexmatch.sum()
 
             if nvoxels<10:
                 continue
             
-            print("number of voxels: ",indexmatch.sum())
+            print("number of voxels: ",indexmatch.sum(),"  over a cascade of ",len(iid_v)," tracks")
 
             # gonna save this particle
             tree = outtrees[ CODE_TO_NAMES[abs(pdgcode)] ]
@@ -214,14 +261,21 @@ for ientry in range(nentries):
             vardict["trackid"][0] = mcpart.TrackID()
             vardict["pid"][0] = mcpart.PdgCode()
             vardict["ke"][0] = partke
+            vardict["ndaughters"][0] = len( iid_v )-1
             
             pos = mcpart.Start().Position()
             
-            print("particle[%d] isshower=%d pid=%d"%(trackid,s_t,pdgcode)," mass=",mass," E=",E," P2=",p," KE=",partke)
+            print("particle[%d] isshower=%d pid=%d ancestorid=%d"%(trackid,s_t,pdgcode,ancestorid))
+            print("             mass=",mass," E=",E," P2=",p," KE=",partke," KEfinal=",KEfinal)
+            print("             start=",posstart," final=",posfinal)
+                 
             
-            iicoord = voxdata["voxcoord"][indexmatch[:],:]
-            iifeat  = voxdata["voxfeat"][indexmatch[:],:]
-            print("iicoord=",iicoord.shape," iifeat=",iifeat.shape)
+            iicoord_v = [ voxdata["voxcoord"][indexmatch[:],:] for indexmatch in indexmatch_v ]
+            iifeat_v  = [ voxdata["voxfeat"][indexmatch[:],:] for indexmatch in indexmatch_v ]
+
+            iicoord = np.concatenate( iicoord_v )
+            iifeat  = np.concatenate( iifeat_v )
+            print("iicoord=",iicoord.shape," iifeat=",iifeat.shape," from ",len(iicoord_v)," arrays")
             np_pid = np.ones( 1, dtype=np.int32 )*pdgcode
             
             # store data

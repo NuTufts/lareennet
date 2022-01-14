@@ -1,7 +1,7 @@
 DEVICE: "cuda"
 RESUME_FROM_CHECKPOINT: false
 RESUME_OPTIM_FROM_CHECKPOINT: false
-CHECKPOINT_FILE: "lv.classify.checkpoint.xth.tar"
+CHECKPOINT_FILE: "lv.classify.checkpoint.3000th.tar"
 WEIGHT_DECAY: 1.0e-4
 LEARNING_RATE: 1.0e-4
 DETECT_ANOMALY: false
